@@ -59,4 +59,4 @@ ENV NODE_OPTIONS="--max-old-space-size=350"
 
 EXPOSE 9090
 
-CMD sh -c "pnpm run seed:production || echo 'Seeding skipped or failed, continuing...' && exec node dist/main.js"
+CMD sh -c "pnpm run migration:run && pnpm run seed:production || echo 'Migration/seeding failed, continuing...' && exec node dist/main.js"
