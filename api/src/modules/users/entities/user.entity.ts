@@ -1,6 +1,5 @@
 import { UserStatus } from '@/common/enums/user-status.enum';
 import { AbstractEntity } from '@/database/abstract.entity';
-import { UserWebsite } from '@/modules/onboarding/entities/user-website.entity';
 import { Role } from '@/modules/permissions/entities/role.entity';
 import { Exclude } from 'class-transformer';
 import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
@@ -14,21 +13,12 @@ export class User extends AbstractEntity<User> {
 	@Column({ name: 'role_id', nullable: true })
 	roleId: string;
 
-	@Column({ name: 'last_opened_website_id', nullable: true })
-	lastOpenedWebsiteId: string;
-
 	@Column({ unique: true })
 	email: string;
 
-	@Column({ nullable: true })
+	@Column({ name: 'password_hash', nullable: true })
 	@Exclude()
-	password?: string;
-
-	@Column({ name: 'google_id', nullable: true, unique: true })
-	googleId?: string;
-
-	@Column({ name: 'auth_provider', default: 'local' })
-	authProvider: string; // 'local' | 'google'
+	passwordHash?: string;
 
 	@Column({ nullable: true })
 	firstName?: string;
@@ -49,23 +39,20 @@ export class User extends AbstractEntity<User> {
 	})
 	status: UserStatus;
 
-	@Column({ name: 'phone_verified', default: false })
-	phoneVerified: boolean;
+	@Column({ name: 'is_active', default: true })
+	isActive: boolean;
 
-	@Column({ name: "phone_verification_token", nullable: true })
-	phoneVerificationToken?: string;
+	@Column({ name: 'must_change_password', default: false })
+	mustChangePassword: boolean;
 
-	@Column({ name: 'phone_verification_expires', nullable: true })
-	phoneVerificationExpires?: Date;
+	@Column({ name: 'linked_client_id', nullable: true })
+	linkedClientId?: string;
 
-	@Column({ name: 'email_verified', default: false })
-	emailVerified: boolean;
+	@Column({ name: 'linked_employee_id', nullable: true })
+	linkedEmployeeId?: string;
 
-	@Column({ name: 'email_verification_token', nullable: true })
-	emailVerificationToken?: string;
-
-	@Column({ name: 'email_verification_expires', nullable: true })
-	emailVerificationExpires?: Date;
+	@Column({ name: 'linked_partner_id', nullable: true })
+	linkedPartnerId?: string;
 
 	@Column({ name: 'reset_password_token', nullable: true })
 	resetPasswordToken?: string;
@@ -73,34 +60,22 @@ export class User extends AbstractEntity<User> {
 	@Column({ name: 'reset_password_expires', nullable: true })
 	resetPasswordExpires?: Date;
 
-	@Column({ name: 'suspension_reason', nullable: true, type: 'text' })
-	suspensionReason?: string;
-
-	@Column({ name: 'is_onboarded', default: false })
-	isOnboarded: boolean;
-
 	@Column({ name: 'last_login_at', nullable: true })
 	lastLoginAt?: Date;
 
-	@Column({ name: 'refresh_token', nullable: true })
+	@Column({ name: 'refresh_token_hash', nullable: true })
 	@Exclude()
-	refreshToken?: string;
+	refreshTokenHash?: string;
 
-	// Relation
+	// Relations
 	@ManyToOne(() => Role, (role) => role.users, { eager: true, nullable: true })
 	@JoinColumn({ name: 'role_id' })
 	userRole: Role;
 
-	// Relation
-	@ManyToOne(() => UserWebsite, (page) => page.websiteId, { eager: true, nullable: true })
-	@JoinColumn({ name: 'last_opened_website_id' })
-	website: UserWebsite;
-
 	get fullName(): string {
-		return `${this.firstName} ${this.lastName}`.trim();
+		return `${this.firstName || ''} ${this.lastName || ''}`.trim();
 	}
 
-	// Virtual getter for permissions
 	get permissions(): string[] {
 		if (!this.userRole?.permissions) return [];
 		return this.userRole.permissions.map(p => `${p.resource}:${p.action}`);

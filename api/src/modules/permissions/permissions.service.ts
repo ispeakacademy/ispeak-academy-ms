@@ -108,8 +108,8 @@ export class PermissionsService {
 		}
 
 		await this.entityManager.transaction(async (manager) => {
-			// need to clear existing relations first to avoid duplicates
-			await manager.clear("role_permissions");
+			// Delete only this role's permission mappings, not all roles
+			await manager.query(`DELETE FROM role_permissions WHERE "role_id" = $1`, [roleId]);
 
 			role.permissions = permissions;
 			await manager.save(role);

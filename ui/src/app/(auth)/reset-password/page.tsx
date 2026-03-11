@@ -1,8 +1,7 @@
 'use client';
 
 import ResetPasswordForm from '@/components/forms/ResetPasswordForm';
-import { Button } from '@/components/ui/button';
-import { AlertCircle } from 'lucide-react';
+import { Button, Result } from 'antd';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
@@ -13,28 +12,23 @@ function ResetPasswordContent() {
 
   if (!token) {
     return (
-      <div className="max-w-md mx-auto text-center">
-        <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-          <AlertCircle className="h-6 w-6 text-red-600" />
-        </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Invalid Reset Link</h2>
-        <p className="text-gray-600 mb-8">
-          The password reset link is invalid or has expired. Please request a new password reset.
-        </p>
-
-        <div className="space-y-3">
-          <Link href="/forgot-password">
-            <Button className="w-full">
-              Request New Reset Link
-            </Button>
-          </Link>
-          <Link href="/login">
-            <Button variant="outline" className="w-full">
-              Back to Sign In
-            </Button>
-          </Link>
-        </div>
-      </div>
+      <Result
+        status="error"
+        title="Invalid Reset Link"
+        subTitle="The password reset link is invalid or has expired. Please request a new password reset."
+        extra={
+          <div className="space-y-3">
+            <Link href="/forgot-password">
+              <Button type="primary" block>
+                Request New Reset Link
+              </Button>
+            </Link>
+            <Link href="/login">
+              <Button block>Back to Sign In</Button>
+            </Link>
+          </div>
+        }
+      />
     );
   }
 

@@ -33,7 +33,9 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       email: user.email,
       role: user.roleId,
       permissions,
-      isAdminUser: user.userRole?.isAdminRole
+      isAdminUser: user.userRole?.isAdminRole,
+      linkedClientId: user.linkedClientId || undefined,
+      linkedEmployeeId: user.linkedEmployeeId || undefined,
     };
   }
 }

@@ -1,161 +1,255 @@
-"use client";
+'use client';
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getAdminDashboardData, type AdminDashboardData, type RecentUser } from "@/lib/api/admin.api";
-import { Loader2, TrendingDown, TrendingUp, Users } from "lucide-react";
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import PageHeader from '@/components/admin/PageHeader';
+import StatCard from '@/components/admin/StatCard';
+import StatusTag from '@/components/admin/StatusTag';
+import {
+  useCohortSummary,
+  useDashboardOverview,
+  useProgramPerformance,
+  useRecentActivity,
+  useRevenueStats,
+} from '@/hooks/useDashboard';
+import {
+  CalendarOutlined,
+  ClockCircleOutlined,
+  DollarOutlined,
+  FileTextOutlined,
+  FundOutlined,
+  TeamOutlined,
+} from '@ant-design/icons';
+import { Card, Progress, Skeleton, Table, Tag, Timeline, Typography } from 'antd';
 
-const subscriptionColors: Record<string, string> = {
-  Premium: "bg-purple-100 text-purple-800",
-  Free: "bg-gray-100 text-gray-800",
-  Pro: "bg-blue-100 text-blue-800",
-  Basic: "bg-green-100 text-green-800",
-};
+const { Text } = Typography;
 
-export default function AdminDashboard() {
-  const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export default function AdminDashboardPage() {
+  const { data: overview, isLoading: loadingOverview } = useDashboardOverview();
+  const { data: revenueStats, isLoading: loadingRevenue } = useRevenueStats();
+  const { data: recentActivity, isLoading: loadingActivity } = useRecentActivity(10);
+  const { data: programPerformance, isLoading: loadingPrograms } = useProgramPerformance();
+  const { data: cohortSummary, isLoading: loadingCohorts } = useCohortSummary();
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await getAdminDashboardData();
-        setDashboardData(data);
-      } catch (err) {
-        console.error("Failed to fetch dashboard data:", err);
-        setError("Failed to load dashboard data. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
+  const formatCurrency = (amount: number) => {
+    return `KES ${amount.toLocaleString()}`;
+  };
 
-    fetchDashboardData();
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-        <p className="text-red-600">{error}</p>
-        <Button onClick={() => window.location.reload()}>Retry</Button>
-      </div>
-    );
-  }
-
-  if (!dashboardData) {
-    return null;
-  }
-
-  const { stats, recentUsers } = dashboardData;
-
-  const statsDisplay = [
+  const programColumns = [
     {
-      title: "Total Users",
-      value: stats.totalUsers.toLocaleString(),
-      change: stats.usersChangePercent,
-      trend: stats.usersTrend,
-      icon: Users,
-      color: "text-blue-600",
-      bgColor: "bg-blue-100",
+      title: 'Program',
+      dataIndex: 'programName',
+      key: 'programName',
+      render: (name: string, record: any) => (
+        <div>
+          <Text strong>{name}</Text>
+          <br />
+          <Text type="secondary" className="text-xs">{record.programCode}</Text>
+        </div>
+      ),
+    },
+    {
+      title: 'Active',
+      dataIndex: 'activeEnrollments',
+      key: 'activeEnrollments',
+      width: 80,
+      align: 'center' as const,
+    },
+    {
+      title: 'Total',
+      dataIndex: 'totalEnrollments',
+      key: 'totalEnrollments',
+      width: 80,
+      align: 'center' as const,
+    },
+    {
+      title: 'Revenue',
+      dataIndex: 'totalRevenue',
+      key: 'totalRevenue',
+      width: 140,
+      render: (value: number) => formatCurrency(value),
     },
   ];
 
   return (
-    <div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {statsDisplay.map((stat) => (
-          <Card key={stat.title} className="border-0 shadow-md">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
+    <>
+      <PageHeader
+        title="Dashboard"
+        subtitle="Overview of your business performance"
+      />
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+        <StatCard
+          label="Total Clients"
+          value={overview?.totalClients ?? 0}
+          icon={<TeamOutlined />}
+          trend={overview?.newClientsThisMonth ? undefined : undefined}
+          trendLabel={overview?.newClientsThisMonth ? `${overview.newClientsThisMonth} new this month` : undefined}
+          loading={loadingOverview}
+        />
+        <StatCard
+          label="Active Enrollments"
+          value={overview?.activeEnrollments ?? 0}
+          icon={<FileTextOutlined />}
+          loading={loadingOverview}
+        />
+        <StatCard
+          label="Revenue This Month"
+          value={overview?.revenueThisMonth ?? 0}
+          icon={<DollarOutlined />}
+          prefix="KES "
+          trend={overview?.revenueGrowthPercent}
+          trendLabel="vs last month"
+          loading={loadingOverview}
+        />
+        <StatCard
+          label="Outstanding"
+          value={overview?.outstandingBalance ?? 0}
+          icon={<FundOutlined />}
+          prefix="KES "
+          loading={loadingOverview}
+        />
+        <StatCard
+          label="Overdue Invoices"
+          value={overview?.overdueInvoices ?? 0}
+          icon={<ClockCircleOutlined />}
+          loading={loadingOverview}
+          valueClassName={overview?.overdueInvoices ? 'text-red-600' : 'text-gray-900'}
+        />
+        <StatCard
+          label="Active Cohorts"
+          value={overview?.activeCohorts ?? 0}
+          icon={<CalendarOutlined />}
+          loading={loadingOverview}
+        />
+      </div>
+
+      {/* Revenue + Recent Activity Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Revenue Summary */}
+        <Card title="Monthly Revenue" size="small">
+          {loadingRevenue ? (
+            <Skeleton active paragraph={{ rows: 4 }} />
+          ) : (
+            <div>
+              <div className="flex justify-between mb-4">
                 <div>
-                  <p className="text-sm font-medium text-gray-600 mb-1">{stat.title}</p>
-                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                  <div className="flex items-center mt-2">
-                    {stat.trend === "up" ? (
-                      <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
-                    ) : (
-                      <TrendingDown className="h-4 w-4 text-red-500 mr-1" />
-                    )}
-                    <span className={`text-sm font-medium ${stat.trend === "up" ? "text-green-600" : "text-red-600"
-                      }`}>
-                      {stat.change}
-                    </span>
-                    <span className="text-sm text-gray-500 ml-1">vs last month</span>
-                  </div>
+                  <Text type="secondary" className="text-xs">Total Collected</Text>
+                  <div className="text-lg font-bold">{formatCurrency(revenueStats?.totalCollected ?? 0)}</div>
                 </div>
-                <div className={`p-3 rounded-lg ${stat.bgColor}`}>
-                  <stat.icon className={`h-6 w-6 ${stat.color}`} />
+                <div>
+                  <Text type="secondary" className="text-xs">Collection Rate</Text>
+                  <div className="text-lg font-bold">{(revenueStats?.collectionRate ?? 0).toFixed(1)}%</div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
-        {/* Recent Users */}
-        <Card className="border-0 shadow-md">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Recent Users</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="space-y-4">
-              {recentUsers.length === 0 ? (
-                <div className="px-6 py-8 text-center text-gray-500">
-                  No users yet
-                </div>
-              ) : (
-                recentUsers.map((user: RecentUser) => (
-                  <div key={user.id} className="px-6 py-4 border-b border-gray-100 last:border-b-0">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-linear-to-r from-purple-400 to-blue-400 rounded-full flex items-center justify-center">
-                          <span className="text-white font-semibold text-sm">
-                            {user.name.charAt(0)}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                          <p className="text-xs text-gray-500">{user.email}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <Badge
-                          className={`text-xs mb-1 ${subscriptionColors[user.subscription] || "bg-gray-100 text-gray-800"}`}
-                        >
-                          {user.subscription}
-                        </Badge>
-                        <p className="text-xs text-gray-500">{user.questionsCount} questions</p>
-                      </div>
+              <div className="space-y-2">
+                {revenueStats?.byMonth?.slice(-6).map((month) => (
+                  <div key={month.month} className="flex items-center gap-3">
+                    <Text type="secondary" className="text-xs w-16 flex-shrink-0">{month.month}</Text>
+                    <div className="flex-1">
+                      <Progress
+                        percent={revenueStats.totalCollected > 0
+                          ? Math.round((month.amount / revenueStats.totalCollected) * 100 * 6)
+                          : 0}
+                        showInfo={false}
+                        size="small"
+                        strokeColor="#4096ff"
+                      />
                     </div>
+                    <Text className="text-xs w-24 text-right flex-shrink-0">
+                      {formatCurrency(month.amount)}
+                    </Text>
                   </div>
-                ))
-              )}
+                ))}
+              </div>
             </div>
-            <div className="px-6 py-4 border-t border-gray-100">
-              <Link href="/dashboard/users">
-                <Button variant="outline" className="w-full">
-                  View All Users
-                </Button>
-              </Link>
+          )}
+        </Card>
+
+        {/* Recent Activity */}
+        <Card title="Recent Activity" size="small">
+          {loadingActivity ? (
+            <Skeleton active paragraph={{ rows: 6 }} />
+          ) : recentActivity && recentActivity.length > 0 ? (
+            <Timeline
+              className="mt-2"
+              items={recentActivity.map((item) => ({
+                color: item.type === 'payment' ? 'green' : item.type === 'enrollment' ? 'blue' : 'gray',
+                children: (
+                  <div>
+                    <Text className="text-sm">{item.description}</Text>
+                    <br />
+                    <Text type="secondary" className="text-xs">
+                      {new Date(item.timestamp).toLocaleString()}
+                    </Text>
+                  </div>
+                ),
+              }))}
+            />
+          ) : (
+            <div className="text-center py-8">
+              <Text type="secondary">No recent activity</Text>
             </div>
-          </CardContent>
+          )}
         </Card>
       </div>
-    </div>
+
+      {/* Program Performance + Active Cohorts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Program Performance */}
+        <Card title="Program Performance" size="small">
+          <Table
+            dataSource={programPerformance || []}
+            columns={programColumns}
+            loading={loadingPrograms}
+            pagination={false}
+            size="small"
+            rowKey="programId"
+            scroll={{ x: true }}
+          />
+        </Card>
+
+        {/* Active Cohorts */}
+        <Card title="Active Cohorts" size="small">
+          {loadingCohorts ? (
+            <Skeleton active paragraph={{ rows: 4 }} />
+          ) : cohortSummary && cohortSummary.length > 0 ? (
+            <div className="space-y-3">
+              {cohortSummary.map((cohort) => (
+                <div key={cohort.cohortId} className="border rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <Text strong className="text-sm">{cohort.cohortName}</Text>
+                      <br />
+                      <Text type="secondary" className="text-xs">{cohort.programName}</Text>
+                    </div>
+                    <StatusTag type="cohort" status={cohort.status} />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Progress
+                      percent={Math.round(cohort.fillRate)}
+                      size="small"
+                      className="flex-1"
+                      format={() => `${cohort.enrolled}/${cohort.capacity}`}
+                    />
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <Text type="secondary" className="text-xs">
+                      {new Date(cohort.startDate).toLocaleDateString()}
+                    </Text>
+                    <Text type="secondary" className="text-xs">
+                      {new Date(cohort.endDate).toLocaleDateString()}
+                    </Text>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Text type="secondary">No active cohorts</Text>
+            </div>
+          )}
+        </Card>
+      </div>
+    </>
   );
 }

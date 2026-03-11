@@ -1,285 +1,228 @@
 import { UserStatus } from '@/common/enums/user-status.enum';
 import authConfig from '@/config/auth.config';
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
-import { UserRole } from '../../common/enums/user-role.enum';
 import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
-import { MailService } from '../mail/mail.service';
+import { EmailService } from '../communications/services/email.service';
 import { UsersService } from '../users/users.service';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
-import { GoogleAuthDto, ConnectGoogleDto } from './dto/google-auth.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Injectable()
 export class AuthService {
-	constructor(
-		private readonly usersService: UsersService,
-		private readonly jwtService: JwtService,
-		private readonly configService: ConfigService,
-		private readonly mailService: MailService,
-	) { }
+  private readonly logger = new Logger(AuthService.name);
 
-	async login(loginDto: LoginDto): Promise<AuthResponseDto> {
-		const { email, password } = loginDto;
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+    private readonly emailService: EmailService,
+  ) {}
 
-		const user = await this.usersService.findByEmail(email);
-		if (!user) {
-			throw new UnauthorizedException('Invalid credentials');
-		}
+  async login(loginDto: LoginDto): Promise<AuthResponseDto> {
+    const { email, password } = loginDto;
 
-		// Check if user has a password set (they might have signed up via OAuth only)
-		if (!user.password) {
-			throw new UnauthorizedException('No password set for this account. Please use Google sign-in or set a password first.');
-		}
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
 
-		const isPasswordValid = await this.validatePassword(password, user.password);
-		if (!isPasswordValid) {
-			throw new UnauthorizedException('Invalid credentials');
-		}
+    if (!user.passwordHash) {
+      throw new UnauthorizedException('No password set for this account.');
+    }
 
-		if (user.status !== UserStatus.ACTIVE) {
-			throw new UnauthorizedException('Account is not active. Please contact support.');
-		}
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
 
-		const payload: JwtPayload = {
-			sub: user.userId,
-			email: user.email,
-			role: user.roleId,
-			isAdminUser: user.userRole?.isAdminRole
-		};
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException('Account is not active.');
+    }
 
-		const accessToken = this.generateAccessToken(payload);
-		const refreshToken = this.generateRefreshToken(payload);
+    const payload: JwtPayload = {
+      sub: user.userId,
+      email: user.email,
+      role: user.roleId,
+      isAdminUser: user.userRole?.isAdminRole,
+      linkedEmployeeId: user.linkedEmployeeId || undefined,
+      linkedClientId: user.linkedClientId || undefined,
+    };
 
-		await this.updateLastLogin(user.userId);
+    const accessToken = this.generateAccessToken(payload);
+    const refreshToken = this.generateRefreshToken(payload);
 
-		return {
-			user,
-			accessToken,
-			refreshToken,
-		};
-	}
+    await this.usersService.updateLastLogin(user.userId);
 
-	async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
-		const userData = {
-			...registerDto,
-			role: UserRole.USER, // Default role for registration
-		};
+    return {
+      user,
+      accessToken,
+      refreshToken,
+      mustChangePassword: user.mustChangePassword,
+    };
+  }
 
-		const user = await this.usersService.create(userData);
+  async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
+    const user = await this.usersService.create(registerDto);
 
-		const payload: JwtPayload = {
-			sub: user.userId,
-			email: user.email,
-			role: user.roleId,
-			isAdminUser: user.userRole?.isAdminRole
-		};
+    const payload: JwtPayload = {
+      sub: user.userId,
+      email: user.email,
+      role: user.roleId,
+      isAdminUser: user.userRole?.isAdminRole,
+      linkedEmployeeId: user.linkedEmployeeId || undefined,
+      linkedClientId: user.linkedClientId || undefined,
+    };
 
-		const accessToken = this.generateAccessToken(payload);
-		const refreshToken = this.generateRefreshToken(payload);
+    const accessToken = this.generateAccessToken(payload);
+    const refreshToken = this.generateRefreshToken(payload);
 
-		return {
-			user,
-			accessToken,
-			refreshToken,
-		};
-	}
+    return {
+      user,
+      accessToken,
+      refreshToken,
+    };
+  }
 
-	async refreshToken(user: JwtPayload): Promise<{ accessToken: string; }> {
-		const payload: JwtPayload = {
-			sub: user.sub,
-			email: user.email,
-			role: user.role,
-		};
+  async refreshToken(user: JwtPayload): Promise<{ accessToken: string }> {
+    const payload: JwtPayload = {
+      sub: user.sub,
+      email: user.email,
+      role: user.role,
+      isAdminUser: user.isAdminUser,
+      linkedEmployeeId: user.linkedEmployeeId,
+      linkedClientId: user.linkedClientId,
+    };
 
-		const accessToken = this.generateAccessToken(payload);
+    const accessToken = this.generateAccessToken(payload);
+    return { accessToken };
+  }
 
-		return { accessToken };
-	}
+  private generateAccessToken(payload: JwtPayload): string {
+    return this.jwtService.sign(payload, {
+      secret: authConfig.jwtSecret,
+      expiresIn: authConfig.jwtExpiresIn,
+    });
+  }
 
-	private generateAccessToken(payload: JwtPayload): string {
-		return this.jwtService.sign(payload, {
-			secret: authConfig.jwtSecret,
-			expiresIn: authConfig.jwtExpiresIn,
-		});
-	}
+  private generateRefreshToken(payload: JwtPayload): string {
+    return this.jwtService.sign(payload, {
+      secret: authConfig.jwtRefreshSecret,
+      expiresIn: authConfig.jwtRefreshExpiresIn,
+    });
+  }
 
-	private generateRefreshToken(payload: JwtPayload): string {
-		return this.jwtService.sign(payload, {
-			secret: authConfig.jwtRefreshSecret,
-			expiresIn: authConfig.jwtRefreshExpiresIn,
-		});
-	}
+  async getCurrentUser(id: string) {
+    return this.usersService.findOne(id);
+  }
 
-	async validatePassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
-		return bcrypt.compare(plainPassword, hashedPassword);
-	}
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<{ message: string }> {
+    const { email } = forgotPasswordDto;
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      return { message: 'If an account with that email exists, a password reset link has been sent.' };
+    }
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new BadRequestException('Account is not active.');
+    }
 
-	async getCurrentUser(id: string) {
-		return this.usersService.findOne(id);
-	}
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const resetTokenExpires = new Date(Date.now() + 15 * 60 * 1000);
+    await this.usersService.updateResetToken(user.userId, resetTokenHash, resetTokenExpires);
 
-	async forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<{ message: string; }> {
-		const { email } = forgotPasswordDto;
+    const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
+    const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
 
-		const user = await this.usersService.findByEmail(email);
-		if (!user) {
-			return { message: 'If an account with that email exists, a password reset link has been sent.' };
-		}
-		if (user.status !== UserStatus.ACTIVE) {
-			throw new BadRequestException('Account is not active. Please contact support.');
-		}
+    try {
+      await this.emailService.sendEmail(
+        email,
+        'Reset Your Password — iSpeak Academy',
+        this.buildResetEmailHtml(user.firstName || 'there', resetUrl),
+      );
+      this.logger.log(`Password reset email sent to ${email}`);
+    } catch (error) {
+      this.logger.error(`Failed to send password reset email to ${email}: ${error.message}`);
+    }
 
-		// Generate reset token
-		const resetToken = crypto.randomBytes(32).toString('hex');
-		const resetTokenExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes from now
+    return { message: 'If an account with that email exists, a password reset link has been sent.' };
+  }
 
-		// Save reset token to user
-		await this.usersService.updateResetToken(user.userId, resetToken, resetTokenExpires);
+  async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<{ message: string }> {
+    const { token, newPassword } = resetPasswordDto;
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await this.usersService.findByResetToken(tokenHash);
+    if (!user) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
 
-		// Get frontend URL from config
-		const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
-		const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
+    await this.usersService.updatePassword(user.userId, newPassword);
+    await this.usersService.clearResetToken(user.userId);
 
-		// Send reset email
-		const emailHtml = `
-			<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-				<h2 style="color: #333;">Password Reset Request</h2>
-				<p>Hello ${user.firstName || 'User'},</p>
-				<p>You requested a password reset for your account. Click the button below to reset your password:</p>
-				<div style="text-align: center; margin: 30px 0;">
-					<a href="${resetUrl}" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">Reset Password</a>
-				</div>
-				<p>Or copy and paste this link into your browser:</p>
-				<p style="word-break: break-all; color: #666;">${resetUrl}</p>
-				<p><strong>This link will expire in 15 minutes.</strong></p>
-				<p>If you didn't request this password reset, please ignore this email.</p>
-				<hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-				<p style="color: #666; font-size: 12px;">This is an automated message, please do not reply.</p>
-			</div>
-		`;
+    return { message: 'Password has been reset successfully' };
+  }
 
-		await this.mailService.sendEmail({
-			to: user.email,
-			subject: 'Password Reset Request',
-			html: emailHtml,
-		});
+  async setPassword(userId: string, newPassword: string): Promise<void> {
+    await this.usersService.setPassword(userId, newPassword);
+  }
 
-		return { message: 'If an account with that email exists, a password reset link has been sent.' };
-	}
-
-	async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<{ message: string; }> {
-		const { token, newPassword } = resetPasswordDto;
-
-		const user = await this.usersService.findByResetToken(token);
-		if (!user) {
-			throw new BadRequestException('Invalid or expired reset token');
-		}
-
-		// Update password and clear reset token
-		await this.usersService.updatePassword(user.userId, newPassword);
-		await this.usersService.clearResetToken(user.userId);
-
-		// Send confirmation email
-		const emailHtml = `
-			<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-				<h2 style="color: #333;">Password Reset Successful</h2>
-				<p>Hello ${user.firstName || 'User'},</p>
-				<p>Your password has been successfully reset.</p>
-				<p>If you didn't make this change, please contact our support team immediately.</p>
-				<hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-				<p style="color: #666; font-size: 12px;">This is an automated message, please do not reply.</p>
-			</div>
-		`;
-
-		await this.mailService.sendEmail({
-			to: user.email,
-			subject: 'Password Reset Successful',
-			html: emailHtml,
-		});
-
-		return { message: 'Password has been reset successfully' };
-	}
-
-	async updateLastLogin(userId: string): Promise<void> {
-		await this.usersService.updateLastLogin(userId);
-	}
-
-	/**
-	 * Authenticate user with Google OAuth
-	 */
-	async authenticateWithGoogle(googleDto: GoogleAuthDto): Promise<AuthResponseDto> {
-		const user = await this.usersService.findOrCreateFromGoogleProfile({
-			providerAccountId: googleDto.providerAccountId,
-			email: googleDto.email,
-			givenName: googleDto.givenName,
-			familyName: googleDto.familyName,
-			pictureUrl: googleDto.pictureUrl,
-		});
-
-		if (user.status !== UserStatus.ACTIVE) {
-			throw new UnauthorizedException('Your account is currently inactive.');
-		}
-
-		const payload: JwtPayload = {
-			sub: user.userId,
-			email: user.email,
-			role: user.roleId,
-			isAdminUser: user.userRole?.isAdminRole,
-		};
-
-		await this.updateLastLogin(user.userId);
-
-		return {
-			user,
-			accessToken: this.generateAccessToken(payload),
-			refreshToken: this.generateRefreshToken(payload),
-		};
-	}
-
-	/**
-	 * Connect Google account to existing authenticated user
-	 */
-	async connectGoogleAccount(userId: string, connectGoogleDto: ConnectGoogleDto): Promise<{ message: string }> {
-		await this.usersService.connectGoogleAccount(
-			userId,
-			connectGoogleDto.providerAccountId,
-			connectGoogleDto.email
-		);
-		return { message: 'Google account connected successfully' };
-	}
-
-	/**
-	 * Disconnect Google account from authenticated user
-	 */
-	async disconnectGoogleAccount(userId: string): Promise<{ message: string }> {
-		await this.usersService.disconnectGoogleAccount(userId);
-		return { message: 'Google account disconnected successfully' };
-	}
-
-	/**
-	 * Set password for OAuth users who don't have one
-	 */
-	async setPassword(userId: string, newPassword: string): Promise<{ message: string }> {
-		await this.usersService.setPassword(userId, newPassword);
-		return { message: 'Password set successfully' };
-	}
-
-	/**
-	 * Get user's authentication status (has password, has google connected)
-	 */
-	async getAuthStatus(userId: string): Promise<{ hasPassword: boolean; hasGoogleConnected: boolean }> {
-		const [hasPassword, hasGoogleConnected] = await Promise.all([
-			this.usersService.hasPasswordSet(userId),
-			this.usersService.hasGoogleConnected(userId),
-		]);
-
-		return { hasPassword, hasGoogleConnected };
-	}
+  private buildResetEmailHtml(firstName: string, resetUrl: string): string {
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f7;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background-color:#1a365d;padding:32px 40px;text-align:center;">
+              <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;">iSpeak Academy</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:40px;">
+              <h2 style="margin:0 0 16px;color:#1a365d;font-size:20px;">Reset Your Password</h2>
+              <p style="margin:0 0 16px;color:#4a5568;font-size:15px;line-height:1.6;">
+                Hi ${firstName}, we received a request to reset your password. Click the button below to set a new password.
+              </p>
+              <table cellpadding="0" cellspacing="0" style="margin:24px auto;">
+                <tr>
+                  <td style="background-color:#2b6cb0;border-radius:6px;">
+                    <a href="${resetUrl}" style="display:inline-block;padding:14px 32px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;">
+                      Reset Password
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:24px 0 0;color:#a0aec0;font-size:13px;line-height:1.6;">
+                This link will expire in 15 minutes. If you didn't request a password reset, you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 40px;background-color:#f7fafc;border-top:1px solid #e2e8f0;text-align:center;">
+              <p style="margin:0;color:#a0aec0;font-size:13px;line-height:1.5;">
+                <a href="mailto:info@ispeakacademy.org" style="color:#2b6cb0;text-decoration:none;">info@ispeakacademy.org</a>
+              </p>
+              <p style="margin:8px 0 0;color:#cbd5e0;font-size:12px;">&copy; ${new Date().getFullYear()} iSpeak Academy. All rights reserved.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`.trim();
+  }
 }

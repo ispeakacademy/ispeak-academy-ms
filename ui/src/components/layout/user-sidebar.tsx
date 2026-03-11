@@ -1,235 +1,169 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserStore } from "@/stores/user.store";
+import NotificationBell from "@/components/NotificationBell";
+import { useNotificationSocket } from "@/hooks/useNotificationSocket";
 import {
-  Brain,
-  ChevronDown,
-  FileText,
-  Key,
-  LayoutDashboard,
-  Link2,
-  LogOut,
-  Menu,
-  User,
-  X
-} from "lucide-react";
+  CalendarOutlined,
+  DashboardOutlined,
+  DollarOutlined,
+  FormOutlined,
+  LogoutOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  ReadOutlined,
+  SafetyCertificateOutlined,
+  ShareAltOutlined,
+  UserOutlined,
+} from "@ant-design/icons";
+import { Button, Menu } from "antd";
+import type { MenuProps } from "antd";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { WebsiteDropdown } from "../WebsiteDropdown";
 
-interface MenuItem {
-  title: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string; }>;
-  description?: string;
-  badge?: string;
-  children?: MenuItem[];
-}
-
-const menuItems: MenuItem[] = [
+const menuItems: MenuProps["items"] = [
   {
-    title: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
+    key: "/portal",
+    icon: <DashboardOutlined />,
+    label: <Link href="/portal">Dashboard</Link>,
   },
   {
-    title: "Keywords",
-    href: "/dashboard/keywords",
-    icon: Key,
+    key: "/portal/programs",
+    icon: <ReadOutlined />,
+    label: <Link href="/portal/programs">My Programs</Link>,
   },
   {
-    title: "Articles",
-    href: "/dashboard/articles",
-    icon: FileText,
+    key: "/portal/sessions",
+    icon: <CalendarOutlined />,
+    label: <Link href="/portal/sessions">Sessions</Link>,
   },
   {
-    title: "Website Pages",
-    href: "/dashboard/pages",
-    icon: Link2,
+    key: "/portal/assignments",
+    icon: <FormOutlined />,
+    label: <Link href="/portal/assignments">Assignments</Link>,
   },
   {
-    title: "Websites",
-    href: "/dashboard/websites",
-    icon: Link2,
+    key: "/portal/invoices",
+    icon: <DollarOutlined />,
+    label: <Link href="/portal/invoices">Invoices</Link>,
   },
   {
-    title: "Profile",
-    href: "/dashboard/profile",
-    icon: User,
-    children: []
+    key: "/portal/certificates",
+    icon: <SafetyCertificateOutlined />,
+    label: <Link href="/portal/certificates">Certificates</Link>,
+  },
+  {
+    key: "/portal/referrals",
+    icon: <ShareAltOutlined />,
+    label: <Link href="/portal/referrals">Referrals</Link>,
+  },
+  {
+    key: "/portal/profile",
+    icon: <UserOutlined />,
+    label: <Link href="/portal/profile">Profile</Link>,
   },
 ];
 
 export default function UserSidebar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const pathname = usePathname();
-  const router = useRouter();
   const { logout } = useAuth();
-
   const user = useUserStore((state) => state.user);
+  useNotificationSocket();
 
   const handleLogout = async () => {
     await logout();
   };
 
-  const toggleExpanded = (title: string) => {
-    setExpandedItems((prev) => (prev.includes(title) ? prev.filter((item) => item !== title) : [...prev, title]));
-  };
-
-  const isActive = (href: string) => {
-    if (href === "/dashboard") {
-      return pathname === "/dashboard";
-    }
-    return pathname === href || pathname.startsWith(href);
-  };
-
-  const isExpanded = (title: string) => expandedItems.includes(title);
+  const selectedKey = menuItems?.find((item) => {
+    const key = item?.key as string;
+    if (key === "/portal") return pathname === "/portal";
+    return pathname.startsWith(key);
+  })?.key as string || "/portal";
 
   return (
     <>
       {/* Mobile Menu Button */}
       <div className="lg:hidden fixed top-4 left-4 z-50">
         <Button
-          variant="outline"
-          size="sm"
+          type="default"
+          size="small"
+          icon={isMobileMenuOpen ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="bg-white shadow-md"
-        >
-          {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-        </Button>
+          className="shadow-md"
+        />
       </div>
 
       {/* Sidebar */}
       <div
         className={`
-        fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out
-        ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
-        lg:translate-x-0 lg:static lg:inset-0
-      `}>
+          fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out
+          ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
+          lg:translate-x-0 lg:static lg:inset-0
+        `}
+      >
         <div className="flex flex-col h-full">
           {/* Logo */}
-            <div className=" flex items-center border-b border-gray-200 justify-between w-full gap-2">
-              <div className="flex items-center px-3 py-3 ">
-                <div className="bg-linear-to-r from-purple-600 to-blue-600 p-2 rounded-lg">
-                  <Brain className="h-6 w-6 text-white" />
-                </div>
-              </div>
-
-              <WebsiteDropdown />
-
+          <div className="flex items-center px-6 py-4 border-b border-gray-200">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-2 rounded-lg">
+              <span className="text-white font-bold text-sm">iS</span>
             </div>
+            <div className="ml-3">
+              <h1 className="text-lg font-bold text-gray-900">iSpeak Academy</h1>
+              <p className="text-xs text-gray-500">Client Portal</p>
+            </div>
+            <div className="ml-auto">
+              <NotificationBell />
+            </div>
+          </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-            {menuItems.map((item) => (
-              <div key={item.title}>
-                {item.children && item.children.length > 0 ? (
-                  <div>
-                    <button
-                      onClick={() => {
-                        toggleExpanded(item.title);
-                        router.push(item.href);
-                      }}
-                      className={`
-                        w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors
-                        ${isActive(item.href) ? "bg-purple-100 text-purple-700" : "text-gray-700 hover:bg-gray-100"}
-                      `}
-                    >
-                      <div className="flex items-center">
-                        <item.icon className="h-5 w-5 mr-3" />
-                        <span>{item.title}</span>
-                      </div>
-                      <ChevronDown
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          toggleExpanded(item.title);
-                        }}
-                        className={`h-4 w-4 shrink-0 transition-transform ${isExpanded(item.title) ? "rotate-180" : ""
-                          }`}
-                      />
-                    </button>
-
-                    {/* Submenu */}
-                    {isExpanded(item.title) && (
-                      <div className="mt-2 ml-6 space-y-1">
-                        {item.children.map((child) => (
-                          <Link
-                            key={child.href}
-                            href={child.href}
-                            className={`
-                              block px-3 py-2 text-sm rounded-lg transition-colors
-                              ${isActive(child.href)
-                                ? "bg-purple-100 text-purple-700 font-medium"
-                                : "text-gray-600 hover:bg-gray-100"
-                              }
-                            `}
-                            onClick={() => setIsMobileMenuOpen(false)}
-                          >
-                            {child.title}
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  // Regular menu item
-                  <Link
-                    href={item.href}
-                    className={`
-                      flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors
-                      ${isActive(item.href) ? "bg-purple-100 text-purple-700" : "text-gray-700 hover:bg-gray-100"}
-                    `}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    <div className="flex items-center">
-                      <item.icon className="h-5 w-5 mr-3" />
-                      <span>{item.title}</span>
-                    </div>
-                  </Link>
-                )}
-              </div>
-            ))}
-          </nav>
+          <div className="flex-1 overflow-y-auto py-2">
+            <Menu
+              mode="inline"
+              selectedKeys={[selectedKey]}
+              items={menuItems}
+              style={{ border: 'none' }}
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
+          </div>
 
           {/* User Info */}
-          <div className="px-4 py-4 border-t border-gray-200 w-full">
-            <div className="flex items-center justify-between w-full gap-2">
-              <div className="flex items-center w-full truncate">
-                <div className="w-8 h-8 bg-primary shrink-0 rounded-full flex items-center justify-center">
-                  <User className="h-4 w-4 text-white" />
+          <div className="px-4 py-4 border-t border-gray-200">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center min-w-0">
+                <div className="w-8 h-8 bg-blue-600 shrink-0 rounded-full flex items-center justify-center">
+                  <UserOutlined className="text-white text-sm" />
                 </div>
-                <div className="ml-3 w-full ">
-                  <p className="text-sm font-medium text-gray-900">{user?.firstName} {user?.lastName}</p>
-                  <p className="text-xs text-gray-500 w-full truncate line-clamp-1">{user?.email}</p>
+                <div className="ml-3 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {user?.firstName} {user?.lastName}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                 </div>
               </div>
               <Button
-                variant="ghost"
-                size="sm"
+                type="text"
+                size="small"
+                icon={<LogoutOutlined />}
                 onClick={handleLogout}
-                className="text-gray-600 shrink-0 flex-1 hover:text-red-600 hover:bg-red-50"
+                className="text-gray-600 hover:text-red-600 shrink-0"
                 title="Logout"
-              >
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div >
-          </div >
-
-          {
-            isMobileMenuOpen && (
-              <div
-                className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
-                onClick={() => setIsMobileMenuOpen(false)}
               />
-            )
-          }
-        </div >
-      </div >
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
     </>
   );
 }

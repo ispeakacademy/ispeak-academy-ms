@@ -30,8 +30,8 @@ export class SystemSettingsRepository extends AbstractRepository<SystemSetting> 
     if (!settings) {
       // Create default settings
       settings = this.repository.create({
-        platformName: 'Edu AI Platform',
-        supportEmail: 'support@eduai.com',
+        platformName: 'iSpeak Academy BMS',
+        supportEmail: 'support@ispeakacademy.org',
         emailNotifications: true,
         smsNotifications: false,
         adminAlerts: true,

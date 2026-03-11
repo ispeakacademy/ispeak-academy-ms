@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import * as Joi from 'joi';
 
@@ -8,16 +10,22 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { DatabaseModule } from './database/database.module';
-import { AdminModule } from './modules/admin/admin.module';
-import { ArticlesModule } from './modules/articles/articles.module';
+import { AssignmentsModule } from './modules/assignments/assignments.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
-import { KeywordsModule } from './modules/keywords/keywords.module';
+import { ClientsModule } from './modules/clients/clients.module';
+import { CommunicationsModule } from './modules/communications/communications.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { LoggingModule } from './modules/logging/logging.module';
-import { MailModule } from './modules/mail/mail.module';
-import { OnboardingModule } from './modules/onboarding/onboarding.module';
-import { OpenAiModule } from './modules/openai/openai.module';
+import { CohortsModule } from './modules/cohorts/cohorts.module';
+import { EmployeesModule } from './modules/employees/employees.module';
+import { EnrollmentsModule } from './modules/enrollments/enrollments.module';
+import { InvoicesModule } from './modules/invoices/invoices.module';
+import { MpesaModule } from './modules/mpesa/mpesa.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { OrganisationsModule } from './modules/organisations/organisations.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
+import { ProgramsModule } from './modules/programs/programs.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { UsersModule } from './modules/users/users.module';
@@ -39,28 +47,24 @@ import { UsersModule } from './modules/users/users.module';
 				ENCRYPTION_KEY: Joi.string().required(),
 
 				JWT_SECRET: Joi.string().required(),
-
 				JWT_EXPIRES_IN: Joi.string().required(),
 				JWT_REFRESH_SECRET: Joi.string().required(),
 				JWT_REFRESH_EXPIRES_IN: Joi.string().required(),
 
-				AWS_ACCESS_KEY_ID: Joi.string().required(),
-				AWS_SECRET_ACCESS_KEY: Joi.string().required(),
-				AWS_REGION: Joi.string().required(),
-				AWS_S3_BUCKET: Joi.string().required(),
-
-				MAIL_HOST: Joi.string().required(),
-				MAIL_PORT: Joi.number().required(),
-				MAIL_USER: Joi.string().required(),
-				MAIL_PASSWORD: Joi.string().required(),
-				MAIL_FROM: Joi.string().optional(),
+				AWS_ACCESS_KEY_ID: Joi.string().optional(),
+				AWS_SECRET_ACCESS_KEY: Joi.string().optional(),
+				AWS_REGION: Joi.string().optional(),
+				AWS_S3_BUCKET: Joi.string().optional(),
 
 				FRONTEND_URL: Joi.string().required(),
 				BACKEND_URL: Joi.string().required(),
 
+				AT_API_KEY: Joi.string().optional().allow(''),
+				AT_USERNAME: Joi.string().optional().default('sandbox'),
+				AT_SMS_SHORTCODE: Joi.string().optional().allow(''),
+
 				THROTTLE_TTL: Joi.number().required(),
 				THROTTLE_LIMIT: Joi.number().required(),
-
 			})
 		}),
 
@@ -74,20 +78,28 @@ import { UsersModule } from './modules/users/users.module';
 			inject: [ConfigService],
 		}),
 
-		UsersModule,
-		PermissionsModule,
+		EventEmitterModule.forRoot(),
+		ScheduleModule.forRoot(),
 		DatabaseModule,
 		LoggingModule,
-		MailModule,
-		AuditModule,
 		StorageModule,
+		AuditModule,
+		PermissionsModule,
+		UsersModule,
 		AuthModule,
 		SettingsModule,
-		OpenAiModule,
-		AdminModule,
-		ArticlesModule,
-		OnboardingModule,
-		KeywordsModule,
+		ClientsModule,
+		CommunicationsModule,
+		DashboardModule,
+		OrganisationsModule,
+		ProgramsModule,
+		CohortsModule,
+		EmployeesModule,
+		EnrollmentsModule,
+		AssignmentsModule,
+		NotificationsModule,
+		InvoicesModule,
+		MpesaModule,
 	],
 	providers: [
 		// Global guards

@@ -1,220 +1,233 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import NotificationBell from "@/components/NotificationBell";
+import { useNotificationSocket } from "@/hooks/useNotificationSocket";
 import { useAuth } from "@/contexts/AuthContext";
+import { hasPermission } from "@/lib/utils/permissions";
 import { useUserStore } from "@/stores/user.store";
 import {
-  Brain,
-  ChevronDown,
-  LayoutDashboard,
-  LogOut,
-  Menu,
-  Settings,
-  Shield,
-  Users,
-  X
-} from "lucide-react";
+  BarChartOutlined,
+  DashboardOutlined,
+  DollarOutlined,
+  FileTextOutlined,
+  IdcardOutlined,
+  LockOutlined,
+  LogoutOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  MessageOutlined,
+  SettingOutlined,
+  SolutionOutlined,
+  TeamOutlined,
+  UserOutlined,
+  UsergroupAddOutlined,
+} from "@ant-design/icons";
+import { Button, Menu } from "antd";
+import type { MenuProps } from "antd";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { usePathname } from "next/navigation";
+import { useMemo, useState } from "react";
 
-interface MenuItem {
-  title: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string; }>;
-  description?: string;
-  badge?: string;
-  children?: MenuItem[];
+interface MenuItemDef {
+  key: string;
+  icon: React.ReactNode;
+  label: React.ReactNode;
+  requiredPermission?: { resource: string; action: string };
 }
 
-const menuItems: MenuItem[] = [
+const allMenuItems: MenuItemDef[] = [
   {
-    title: "Dashboard",
-    href: "/admin",
-    icon: LayoutDashboard,
+    key: "/admin",
+    icon: <DashboardOutlined />,
+    label: <Link href="/admin">Dashboard</Link>,
+    requiredPermission: { resource: "dashboard", action: "read" },
   },
   {
-    title: "Users",
-    href: "/admin/users",
-    icon: Users,
+    key: "/admin/clients",
+    icon: <TeamOutlined />,
+    label: <Link href="/admin/clients">Clients</Link>,
+    requiredPermission: { resource: "clients", action: "read" },
   },
   {
-    title: "System Settings",
-    href: "/admin/settings",
-    icon: Settings,
-    children: []
+    key: "/admin/programs",
+    icon: <SolutionOutlined />,
+    label: <Link href="/admin/programs">Programs</Link>,
+    requiredPermission: { resource: "programs", action: "read" },
   },
   {
-    title: "Activity logs",
-    href: "/admin/activity-logs",
-    icon: Shield,
-    children: [],
+    key: "/admin/enrollments",
+    icon: <FileTextOutlined />,
+    label: <Link href="/admin/enrollments">Enrollments</Link>,
+    requiredPermission: { resource: "enrollments", action: "read" },
+  },
+  {
+    key: "/admin/communication",
+    icon: <MessageOutlined />,
+    label: <Link href="/admin/communication">Communication</Link>,
+    requiredPermission: { resource: "communications", action: "read" },
+  },
+  {
+    key: "/admin/invoices",
+    icon: <DollarOutlined />,
+    label: <Link href="/admin/invoices">Invoices</Link>,
+    requiredPermission: { resource: "invoices", action: "read" },
+  },
+  {
+    key: "/admin/revenue",
+    icon: <BarChartOutlined />,
+    label: <Link href="/admin/revenue">Revenue</Link>,
+    requiredPermission: { resource: "reports", action: "read" },
+  },
+  {
+    key: "/admin/employees",
+    icon: <UserOutlined />,
+    label: <Link href="/admin/employees">Employees</Link>,
+    requiredPermission: { resource: "employees", action: "read" },
+  },
+  {
+    key: "/admin/partners",
+    icon: <UsergroupAddOutlined />,
+    label: <Link href="/admin/partners">Partners</Link>,
+    requiredPermission: { resource: "partners", action: "read" },
+  },
+  {
+    key: "/admin/settings",
+    icon: <SettingOutlined />,
+    label: <Link href="/admin/settings">Settings</Link>,
+    requiredPermission: { resource: "settings", action: "read" },
+  },
+  {
+    key: "/admin/settings/permissions",
+    icon: <LockOutlined />,
+    label: <Link href="/admin/settings/permissions">Roles & Permissions</Link>,
+    requiredPermission: { resource: "settings", action: "update" },
+  },
+  {
+    key: "/admin/profile",
+    icon: <IdcardOutlined />,
+    label: <Link href="/admin/profile">My Profile</Link>,
   },
 ];
 
 export default function AdminSidebar() {
+  const [collapsed, setCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const pathname = usePathname();
-  const router = useRouter();
   const { logout } = useAuth();
-
   const user = useUserStore((state) => state.user);
+  useNotificationSocket();
+
+  const menuItems: MenuProps["items"] = useMemo(() => {
+    return allMenuItems
+      .filter((item) =>
+        !item.requiredPermission ||
+        hasPermission(user, item.requiredPermission.resource, item.requiredPermission.action)
+      )
+      .map(({ requiredPermission, ...item }) => item);
+  }, [user]);
 
   const handleLogout = async () => {
     await logout();
   };
 
-  const toggleExpanded = (title: string) => {
-    setExpandedItems((prev) => (prev.includes(title) ? prev.filter((item) => item !== title) : [...prev, title]));
-  };
-
-  const isActive = (href: string) => {
-    return pathname === href || (href !== "/admin" && pathname.startsWith(href));
-  };
-
-  const isExpanded = (title: string) => expandedItems.includes(title);
+  const selectedKey = useMemo(() => {
+    // Sort by key length descending so longer (more specific) paths match first
+    const sorted = [...(menuItems || [])].sort(
+      (a, b) => (b?.key as string).length - (a?.key as string).length,
+    );
+    const match = sorted.find((item) => {
+      const key = item?.key as string;
+      if (key === "/admin") return pathname === "/admin";
+      return pathname.startsWith(key);
+    });
+    return (match?.key as string) || "/admin";
+  }, [menuItems, pathname]);
 
   return (
     <>
       {/* Mobile Menu Button */}
       <div className="lg:hidden fixed top-4 left-4 z-50">
         <Button
-          variant="outline"
-          size="sm"
+          type="default"
+          size="small"
+          icon={isMobileMenuOpen ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="bg-white shadow-md"
-        >
-          {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-        </Button>
+          className="shadow-md"
+        />
       </div>
 
       {/* Sidebar */}
       <div
         className={`
-        fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out
-        ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
-        lg:translate-x-0 lg:static lg:inset-0
-      `}>
+          fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out
+          ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
+          lg:translate-x-0 lg:static lg:inset-0
+        `}
+      >
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center px-6 py-4 border-b border-gray-200">
-            <div className="bg-linear-to-r from-purple-600 to-blue-600 p-2 rounded-lg">
-              <Brain className="h-6 w-6 text-white" />
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-2 rounded-lg">
+              <span className="text-white font-bold text-sm">iS</span>
             </div>
             <div className="ml-3">
-              <h1 className="text-lg font-bold text-gray-900">GetAISEO</h1>
+              <h1 className="text-lg font-bold text-gray-900">iSpeak Academy</h1>
+              <p className="text-xs text-gray-500">Business Management</p>
+            </div>
+            <div className="ml-auto">
+              <NotificationBell />
             </div>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-            {menuItems.map((item) => (
-              <div key={item.title}>
-                {item.children && item.children.length > 0 ? (
-                  <div>
-                    <button
-                      onClick={() => {
-                        toggleExpanded(item.title);
-                        router.push(item.href);
-                      }}
-                      className={`
-                        w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors
-                        ${isActive(item.href) ? "bg-purple-100 text-purple-700" : "text-gray-700 hover:bg-gray-100"}
-                      `}
-                    >
-                      <div className="flex items-center">
-                        <item.icon className="h-5 w-5 mr-3" />
-                        <span>{item.title}</span>
-                      </div>
-                      <ChevronDown
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          toggleExpanded(item.title);
-                        }}
-                        className={`h-4 w-4 shrink-0 transition-transform ${isExpanded(item.title) ? "rotate-180" : ""
-                          }`}
-                      />
-                    </button>
-
-                    {/* Submenu */}
-                    {isExpanded(item.title) && (
-                      <div className="mt-2 ml-6 space-y-1">
-                        {item.children.map((child) => (
-                          <Link
-                            key={child.href}
-                            href={child.href}
-                            className={`
-                              block px-3 py-2 text-sm rounded-lg transition-colors
-                              ${isActive(child.href)
-                                ? "bg-purple-100 text-purple-700 font-medium"
-                                : "text-gray-600 hover:bg-gray-100"
-                              }
-                            `}
-                            onClick={() => setIsMobileMenuOpen(false)}
-                          >
-                            {child.title}
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  // Regular menu item
-                  <Link
-                    href={item.href}
-                    className={`
-                      flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors
-                      ${isActive(item.href) ? "bg-purple-100 text-purple-700" : "text-gray-700 hover:bg-gray-100"}
-                    `}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    <div className="flex items-center">
-                      <item.icon className="h-5 w-5 mr-3" />
-                      <span>{item.title}</span>
-                    </div>
-                  </Link>
-                )}
-              </div>
-            ))}
-          </nav>
+          <div className="flex-1 overflow-y-auto py-2">
+            <Menu
+              mode="inline"
+              selectedKeys={[selectedKey]}
+              items={menuItems}
+              style={{ border: 'none' }}
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
+          </div>
 
           {/* User Info */}
-          <div className="px-4 py-4 border-t border-gray-200 w-full">
-            <div className="flex items-center justify-between w-full gap-2">
-              <div className="flex items-center w-full truncate">
-                <div className="w-8 h-8 bg-primary shrink-0 rounded-full flex items-center justify-center">
-                  <Shield className="h-4 w-4 text-white" />
-                </div>
-                <div className="ml-3 w-full ">
-                  <p className="text-sm font-medium text-gray-900">{user?.firstName} {user?.lastName}</p>
-                  <p className="text-xs text-gray-500 w-full truncate line-clamp-1">{user?.email}</p>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLogout}
-                className="text-gray-600 shrink-0 flex-1 hover:text-red-600 hover:bg-red-50"
-                title="Logout"
-              >
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div >
-          </div >
-
-          {/* Mobile Overlay */};
-          {
-            isMobileMenuOpen && (
-              <div
-                className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+          <div className="px-4 py-4 border-t border-gray-200">
+            <div className="flex items-center justify-between gap-2">
+              <Link
+                href="/admin/profile"
+                className="flex items-center min-w-0 hover:opacity-80 transition-opacity"
                 onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <div className="w-8 h-8 bg-blue-600 shrink-0 rounded-full flex items-center justify-center">
+                  <UserOutlined className="text-white text-sm" />
+                </div>
+                <div className="ml-3 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {user?.firstName} {user?.lastName}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                </div>
+              </Link>
+              <Button
+                type="text"
+                size="small"
+                icon={<LogoutOutlined />}
+                onClick={handleLogout}
+                className="text-gray-600 hover:text-red-600 shrink-0"
+                title="Logout"
               />
-            )
-          }
-        </div >
-      </div >
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
     </>
   );
 }

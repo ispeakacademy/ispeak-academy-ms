@@ -1,6 +1,5 @@
 import { AbstractEntity } from '@/database/abstract.entity';
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
-import { AiModelConfiguration } from './ai-model-configuration.entity';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('system_settings')
 export class SystemSetting extends AbstractEntity<SystemSetting> {
@@ -8,11 +7,14 @@ export class SystemSetting extends AbstractEntity<SystemSetting> {
   systemSettingId: string;
 
   // General Settings
-  @Column({ name: 'platform_name', default: 'Edu AI Platform' })
+  @Column({ name: 'platform_name', default: 'iSpeak Academy BMS' })
   platformName: string;
 
-  @Column({ name: 'support_email', default: 'support@eduai.com' })
+  @Column({ name: 'support_email', default: 'support@ispeakacademy.org' })
   supportEmail: string;
+
+  @Column({ name: 'website_url', type: 'varchar', length: 500, nullable: true })
+  websiteUrl?: string;
 
   // Branding Settings
   @Column({ name: 'app_logo', type: 'varchar', length: 500, nullable: true })
@@ -20,6 +22,15 @@ export class SystemSetting extends AbstractEntity<SystemSetting> {
 
   @Column({ name: 'app_favicon', type: 'varchar', length: 500, nullable: true })
   appFavicon?: string;
+
+  @Column({ name: 'invoice_logo', type: 'varchar', length: 500, nullable: true })
+  invoiceLogo?: string;
+
+  @Column({ name: 'primary_color', type: 'varchar', length: 20, default: '#000000' })
+  primaryColor: string;
+
+  @Column({ name: 'secondary_color', type: 'varchar', length: 20, default: '#D4A843' })
+  secondaryColor: string;
 
   // Contact Information
   @Column({ name: 'contact_phone', type: 'varchar', length: 20, nullable: true })
@@ -48,14 +59,6 @@ export class SystemSetting extends AbstractEntity<SystemSetting> {
   @Column({ name: 'allowed_file_types', type: 'simple-array', nullable: true })
   allowedFileTypes?: string[];
 
-  // AI Model Settings
-  @Column({ name: 'default_ai_model_id', type: 'integer', nullable: true })
-  defaultAiModelId?: number;
-
-  @ManyToOne(() => AiModelConfiguration)
-  @JoinColumn({ name: 'default_ai_model_id', referencedColumnName: 'modelId' })
-  defaultAiModel?: AiModelConfiguration;
-
   // User Signup Settings
   @Column({ name: 'allow_signup', type: 'boolean', default: false })
   allowSignup: boolean;
@@ -73,9 +76,8 @@ export class SystemSetting extends AbstractEntity<SystemSetting> {
   @Column({ name: 'admin_alerts', type: 'boolean', default: true })
   adminAlerts: boolean;
 
-  // Content Settings
-  @Column({ name: 'content_briefing_prompt', type: 'text', nullable: true })
-  contentBriefingPrompt?: string;
+  @Column({ name: 'whatsapp_notifications', type: 'boolean', default: false })
+  whatsappNotifications: boolean;
 
   // Helper methods
   getFileUploadSizeInMB(): string {
@@ -84,9 +86,5 @@ export class SystemSetting extends AbstractEntity<SystemSetting> {
 
   getAllowedFileTypesString(): string {
     return this.allowedFileTypes?.join(', ') || 'No restrictions';
-  }
-
-  hasDefaultAiModel(): boolean {
-    return !!this.defaultAiModelId;
   }
 }

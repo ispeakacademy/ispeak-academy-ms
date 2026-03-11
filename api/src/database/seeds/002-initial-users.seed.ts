@@ -1,55 +1,49 @@
-import { UserRole } from "@/common/enums/user-role.enum";
-import { UserStatus } from "@/common/enums/user-status.enum";
-import { Role } from "@/modules/permissions/entities/role.entity";
-import * as bcrypt from "bcryptjs";
-import { DataSource } from "typeorm";
-import { User } from "../../modules/users/entities/user.entity";
+import { UserRole } from '@/common/enums/user-role.enum';
+import { Role } from '@/modules/permissions/entities/role.entity';
+import { User } from '@/modules/users/entities/user.entity';
+import * as bcrypt from 'bcryptjs';
+import { DataSource } from 'typeorm';
 
 export class InitialUsersSeed {
-    public async run(dataSource: DataSource): Promise<void> {
-        const userRepository = dataSource.getRepository(User);
-        const roleRepository = dataSource.getRepository(Role);
+	async run(dataSource: DataSource): Promise<void> {
+		console.log('Seeding initial users...');
 
-        console.log("🌱 Seeding initial users...");
+		const userRepo = dataSource.getRepository(User);
+		const roleRepo = dataSource.getRepository(Role);
 
-        const roles = await roleRepository.find();
+		// Find the super admin role
+		const superAdminRole = await roleRepo.findOne({
+			where: { name: UserRole.SUPER_ADMIN },
+		});
 
-        // Define initial users
-        const initialUsers: Partial<User>[] = [
-            {
-                firstName: "Super",
-                lastName: "Admin",
-                email: "jamesnjungem@protonmail.com",
-                emailVerified: true,
-                password: "jamesnjungem@protonmail.com!#",
-                status: UserStatus.ACTIVE,
-                phone: "0712345678",
-                roleId: roles.find((r) => r.name === UserRole.SUPER_ADMIN)?.roleId,
-                phoneVerified: true,
-            },
-        ];
+		if (!superAdminRole) {
+			console.error('  Super Admin role not found. Run permissions seed first.');
+			return;
+		}
 
-        // Process each user
-        for (const userData of initialUsers) {
-            const existingUser = await userRepository.findOne({
-                where: { email: userData.email },
-            });
+		// Check if super admin user already exists
+		const existingSuperAdmin = await userRepo.findOne({
+			where: { email: 'admin@ispeakacademy.org' },
+		});
 
-            if (!existingUser) {
-                // Hash password
-                const hashedPassword = await bcrypt.hash(userData.password, 12);
-                // Create user
-                const user = userRepository.create({
-                    ...userData,
-                    password: hashedPassword,
-                });
-                await userRepository.save(user);
-                console.log(`✅ Created ${userData.userRole?.name}: ${userData.email}`);
-            } else {
-                console.log(`⏭️  User already exists: ${userData.email}`);
-            }
-        }
+		if (!existingSuperAdmin) {
+			const defaultPassword = process.env.SUPER_ADMIN_PASSWORD || 'ChangeMe@2025!';
+			const passwordHash = await bcrypt.hash(defaultPassword, 10);
 
-        console.log("🎉 Initial users seeding completed!");
-    }
+			const superAdmin = userRepo.create({
+				email: 'admin@ispeakacademy.org',
+				passwordHash,
+				firstName: 'Super',
+				lastName: 'Admin',
+				roleId: superAdminRole.roleId,
+				isActive: true,
+				mustChangePassword: true,
+			});
+
+			await userRepo.save(superAdmin);
+			console.log('  Super Admin user created (admin@ispeakacademy.org)');
+		} else {
+			console.log('  Super Admin user already exists, skipping.');
+		}
+	}
 }

@@ -11,7 +11,11 @@ export class EncryptionService {
 
 
   constructor(private readonly configService: ConfigService) {
-    this.encryptionKey = this.configService.getOrThrow<string>('ENCRYPTION_KEY');
+    const key = this.configService.getOrThrow<string>('ENCRYPTION_KEY');
+    if (key.length < 32) {
+      this.logger.warn('ENCRYPTION_KEY is shorter than 32 characters — padding applied. Use a 32+ char key in production.');
+    }
+    this.encryptionKey = key;
   }
 
   async encrypt(text: string): Promise<string> {

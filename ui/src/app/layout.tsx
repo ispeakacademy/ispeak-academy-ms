@@ -12,51 +12,29 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "MasomoAI - AI Homework Helper for Quick, Accurate, and Stress-Free Solutions",
-  description: "Get instant help with your homework across all subjects. Our AI-powered platform provides step-by-step solutions, explanations, and expert guidance to help you succeed academically.",
-  keywords: "homework help, AI tutor, study assistance, academic support, math solver, essay writer, online learning",
-  authors: [{ name: "MasomoAI Team" }],
-  creator: "MasomoAI",
-  publisher: "MasomoAI",
+  title: "iSpeak Academy - Business Management System",
+  description: "iSpeak Academy BMS - Manage programs, enrollments, clients, communications, invoicing, and more. Built for iSpeak Academy by Mcdorcis Solutions.",
+  keywords: "iSpeak Academy, business management, enrollment management, program management, communication hub",
+  authors: [{ name: "Mcdorcis Solutions" }],
+  creator: "Mcdorcis Solutions",
+  publisher: "iSpeak Academy",
   formatDetection: {
     email: false,
     address: false,
     telephone: false,
   },
-  metadataBase: new URL("https://MasomoAI.com"),
+  metadataBase: new URL("https://bms.ispeakacademy.org"),
   openGraph: {
-    title: "MasomoAI - AI Homework Helper",
-    description: "Get instant, accurate homework help across all subjects with our AI-powered platform.",
-    url: "https://MasomoAI.com",
-    siteName: "MasomoAI",
-    images: [
-      {
-        url: "/og-image.jpg",
-        width: 1200,
-        height: 630,
-        alt: "MasomoAI - AI Homework Helper",
-      },
-    ],
-    locale: "en_US",
+    title: "iSpeak Academy - Business Management System",
+    description: "Comprehensive business management system for iSpeak Academy.",
+    url: "https://bms.ispeakacademy.org",
+    siteName: "iSpeak Academy BMS",
+    locale: "en_KE",
     type: "website",
   },
-  twitter: {
-    card: "summary_large_image",
-    title: "MasomoAI - AI Homework Helper",
-    description: "Get instant, accurate homework help across all subjects with our AI-powered platform.",
-    images: ["/og-image.jpg"],
-    creator: "@MasomoAI",
-  },
   robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-    },
+    index: false,
+    follow: false,
   },
 };
 

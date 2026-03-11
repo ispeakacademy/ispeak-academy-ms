@@ -118,13 +118,13 @@ export const userApi = {
   // Change password
   changePassword: async (passwordData: { currentPassword: string; newPassword: string; }): Promise<{ success: boolean; message: string; }> => {
     const response = await api.post('/users/change-password', passwordData);
-    return response.data;
+    return response.data?.data;
   },
 
   // Set password (for OAuth users who don't have one)
   setPassword: async (newPassword: string): Promise<{ success: boolean; message: string; }> => {
     const response = await api.post('/auth/set-password', { newPassword });
-    return response.data;
+    return response.data?.data;
   },
 
   // Get auth status (has password, has google connected)

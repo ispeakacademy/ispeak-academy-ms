@@ -31,17 +31,13 @@ export class PermissionsGuard implements CanActivate {
 		if (!user) {
 			throw new ForbiddenException('User not authenticated');
 		}
-		
-		if (!user.isAdminUser) {
-			throw new ForbiddenException('User not authorized to access this resource');
-		}
-		
+
 		// Super Admin bypasses all permission checks
 		if (user.role === UserRole.SUPER_ADMIN || user.userRole?.name === UserRole.SUPER_ADMIN) {
 			return true;
 		}
 
-		// Check if user has required permissions
+		// Check if user has required permissions (works for all roles including CLIENT, TRAINER, etc.)
 		const userPermissions: string[] = user.permissions || [];
 
 		const hasPermission = requiredPermissions.some(({ resource, action }) => {

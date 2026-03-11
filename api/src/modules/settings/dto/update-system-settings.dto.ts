@@ -15,6 +15,12 @@ export class UpdateSystemSettingsDto {
   @IsEmail()
   supportEmail?: string;
 
+  @ApiPropertyOptional({ description: 'Website URL', maxLength: 500 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  websiteUrl?: string;
+
   // Branding Settings
   @ApiPropertyOptional({ description: 'App logo URL', maxLength: 500 })
   @IsOptional()
@@ -25,6 +31,23 @@ export class UpdateSystemSettingsDto {
   @IsOptional()
   @MaxLength(500)
   appFavicon?: string;
+
+  @ApiPropertyOptional({ description: 'Invoice/receipt logo URL', maxLength: 500 })
+  @IsOptional()
+  @MaxLength(500)
+  invoiceLogo?: string;
+
+  @ApiPropertyOptional({ description: 'Primary brand color hex code', maxLength: 20 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  primaryColor?: string;
+
+  @ApiPropertyOptional({ description: 'Secondary brand color hex code', maxLength: 20 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  secondaryColor?: string;
 
   // Contact Information
   @ApiPropertyOptional({ description: 'Contact phone number', maxLength: 20 })
@@ -78,13 +101,6 @@ export class UpdateSystemSettingsDto {
   @IsString({ each: true })
   allowedFileTypes?: string[];
 
-  // AI Model Settings
-  @ApiPropertyOptional({ description: 'Default AI model ID' })
-  @IsOptional()
-  @IsInt()
-  @Type(() => Number)
-  defaultAiModelId?: number;
-
   // User Settings
   @ApiPropertyOptional({ description: 'Allow user signup' })
   @IsOptional()
@@ -112,9 +128,8 @@ export class UpdateSystemSettingsDto {
   @IsBoolean()
   adminAlerts?: boolean;
 
-  // Content Settings
-  @ApiPropertyOptional({ description: 'Content briefing prompt for article generation' })
+  @ApiPropertyOptional({ description: 'Enable WhatsApp notifications' })
   @IsOptional()
-  @IsString()
-  contentBriefingPrompt?: string;
+  @IsBoolean()
+  whatsappNotifications?: boolean;
 }

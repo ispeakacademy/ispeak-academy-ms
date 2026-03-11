@@ -1,31 +1,19 @@
-import ProtectedRoute from "@/components/ProtectedRoute";
-import { getCurrentUser } from '@/lib/session';
-import type { Metadata } from "next";
-import { redirect } from 'next/navigation';
-import { PropsWithChildren } from 'react';
+'use client';
 
-export const metadata: Metadata = {
-  robots: {
-    index: false,
-    follow: false,
-  },
-};
+import AdminSidebar from '@/components/layout/admin-sidebar';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
-export default async function AdminLayout({ children }: PropsWithChildren) {
-  const currentUser = await getCurrentUser();
-
-  if (!currentUser) {
-    return redirect('/login');
-  }
-
-  // Only allow admin users to access /admin routes
-  if (!currentUser.isAdminUser) {
-    return redirect('/dashboard');
-  }
-
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ProtectedRoute requireOnboarding={false}>
-      {children}
+    <ProtectedRoute allowedRoles={['super_admin', 'admin', 'finance', 'trainer']}>
+      <div className="flex h-screen bg-gray-50">
+        <AdminSidebar />
+        <main className="flex-1 overflow-y-auto">
+          <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto">
+            {children}
+          </div>
+        </main>
+      </div>
     </ProtectedRoute>
   );
 }

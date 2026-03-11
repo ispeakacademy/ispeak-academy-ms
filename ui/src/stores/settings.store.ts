@@ -1,27 +1,24 @@
-import { SystemSetting } from '@/types/settings';
+import type { SystemSetting } from '@/types/settings';
 import { create } from 'zustand';
-import { devtools, persist } from 'zustand/middleware';
+import { devtools } from 'zustand/middleware';
 
 interface SettingsState {
-	settings: SystemSetting | null;
-	setSettings: (settings: SystemSetting | null) => void;
-
+  settings: SystemSetting | null;
+  isLoading: boolean;
+  setSettings: (settings: SystemSetting) => void;
+  setLoading: (loading: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
-	devtools(
-		persist(
-			(set) => ({
-				settings: null,
-				setSettings: (settings) => set({ settings }),
-			}),
-			{
-				name: 'settings-storage',
-				partialize: (state) => ({ settings: state.settings }),
-			}
-		),
-		{
-			name: 'settings-store',
-		}
-	)
+  devtools(
+    (set) => ({
+      settings: null,
+      isLoading: false,
+      setSettings: (settings) => set({ settings }),
+      setLoading: (isLoading) => set({ isLoading }),
+    }),
+    {
+      name: 'settings-store',
+    }
+  )
 );

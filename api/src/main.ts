@@ -1,3 +1,6 @@
+import { setDefaultResultOrder } from 'dns';
+setDefaultResultOrder('ipv4first');
+
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
@@ -13,17 +16,16 @@ async function bootstrap() {
 	const logger = WinstonModule.createLogger(winstonConfig);
 	const app = await NestFactory.create(AppModule, {
 		logger,
-		rawBody: true, // Enable raw body for Stripe webhooks
+		rawBody: true,
 	});
 
 	const configService = app.get(ConfigService);
 
-	// Configure body parser with raw body for webhooks
+	// Configure body parser with raw body for M-Pesa webhooks
 	app.use(
 		json({
 			verify: (req: any, res, buf) => {
-				// Store raw body for webhook verification
-				if (req.url?.startsWith('/api/v1/webhooks/stripe')) {
+				if (req.url?.startsWith('/api/v1/webhooks/mpesa')) {
 					req.rawBody = buf;
 				}
 			},
@@ -32,12 +34,12 @@ async function bootstrap() {
 	app.use(urlencoded({ extended: true }));
 
 	// Enable CORS
+	const frontendUrl = configService.get<string>('FRONTEND_URL', 'http://localhost:3001');
 	app.enableCors({
 		origin: [
-			configService.get<string>('FRONTEND_URL', 'http://localhost:3001'),
+			frontendUrl,
 			'http://localhost:3001',
 			'http://localhost:3000',
-			'https://ai.edutized.com'
 		],
 		credentials: true,
 		methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -57,7 +59,6 @@ async function bootstrap() {
 	);
 
 	app.useGlobalFilters(new HttpExceptionFilter());
-	// Global interceptors
 	app.useGlobalInterceptors(new LoggingInterceptor());
 
 	// Set global prefix
@@ -66,14 +67,22 @@ async function bootstrap() {
 
 	// Swagger Documentation
 	const config = new DocumentBuilder()
-		.setTitle('Masomo Dash API')
-		.setDescription('Educational Materials Marketplace API')
+		.setTitle('iSpeak Academy BMS API')
+		.setDescription('Business Management System API for iSpeak Academy')
 		.setVersion('1.0')
 		.addTag('Auth', 'Authentication endpoints')
 		.addTag('Users', 'User management')
-		.addTag('Papers', 'Paper management')
-		.addTag('Credits', 'Credit wallet and purchases')
-		.addTag('Admin', 'Admin operations')
+		.addTag('Clients', 'Client CRM')
+		.addTag('Organisations', 'Organisation management')
+		.addTag('Programs', 'Program catalog')
+		.addTag('Cohorts', 'Cohort management')
+		.addTag('Sessions', 'Session management')
+		.addTag('Enrollments', 'Enrollment management')
+		.addTag('Waitlist', 'Waitlist management')
+		.addTag('Invoices', 'Invoice management')
+		.addTag('Payments', 'Payment management')
+		.addTag('Communications', 'Communication hub')
+		.addTag('Dashboard', 'Admin dashboard')
 		.addBearerAuth({
 			type: 'http',
 			scheme: 'bearer',
@@ -90,8 +99,8 @@ async function bootstrap() {
 	const PORT = configService.get<number>('PORT', 3000);
 	await app.listen(PORT);
 
-	console.log(`🚀 Application is running on: http://localhost:${PORT}/${PREFIX}`);
-	console.log(`📚 Swagger docs available at: http://localhost:${PORT}/api/docs`);
+	logger.log(`Application is running on: http://localhost:${PORT}/${PREFIX}`);
+	logger.log(`Swagger docs available at: http://localhost:${PORT}/api/docs`);
 }
 
 process.on('uncaughtException', (error) => {
@@ -103,8 +112,6 @@ process.on('uncaughtException', (error) => {
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-	console.log('Unhandled Rejection', reason, promise);
-
 	const logger = WinstonModule.createLogger(winstonConfig);
 	logger.error('Unhandled Rejection', {
 		reason,

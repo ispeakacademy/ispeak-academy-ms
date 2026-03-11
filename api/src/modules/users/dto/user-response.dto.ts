@@ -1,15 +1,14 @@
-import { UserRole } from '@/common/enums/user-role.enum';
 import { Exclude, Expose } from 'class-transformer';
 
 export class UserResponseDto {
   @Expose()
-  id: string;
+  userId: string;
 
   @Expose()
   email: string;
 
   @Exclude()
-  password: string;
+  passwordHash: string;
 
   @Expose()
   firstName: string;
@@ -18,13 +17,13 @@ export class UserResponseDto {
   lastName: string;
 
   @Expose()
-  avatar: string;
+  avatarUrl: string;
 
   @Expose()
-  role: UserRole;
+  roleId: string;
 
   @Expose()
-  isEmailVerified: boolean;
+  status: string;
 
   @Expose()
   isActive: boolean;

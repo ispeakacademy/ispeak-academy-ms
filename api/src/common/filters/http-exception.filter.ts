@@ -21,9 +21,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
       exception instanceof HttpException
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
-    
-    console.log(exception);
-    
+
+    if (status >= 500) {
+      this.logger.error('Unhandled exception', exception instanceof Error ? exception.stack : exception);
+    }
 
     const message =
       exception instanceof HttpException

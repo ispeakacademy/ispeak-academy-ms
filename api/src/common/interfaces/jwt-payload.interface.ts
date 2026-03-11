@@ -6,4 +6,6 @@ export interface JwtPayload {
 	iat?: number;
 	exp?: number;
 	isAdminUser?: boolean;
+	linkedEmployeeId?: string;
+	linkedClientId?: string;
 }

@@ -1,8 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Article } from '../articles/entities/article.entity';
 import { AuditModule } from '../audit/audit.module';
-import { Keyword } from '../keywords/entities/keyword.entity';
 import { Role } from '../permissions/entities/role.entity';
 import { PermissionsModule } from '../permissions/permissions.module';
 import { User } from './entities/user.entity';
@@ -12,14 +10,9 @@ import { UsersService } from './users.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      User,
-      Role,
-      Keyword,
-      Article
-    ]),
+    TypeOrmModule.forFeature([User, Role]),
     AuditModule,
-    forwardRef(() => PermissionsModule)
+    forwardRef(() => PermissionsModule),
   ],
   controllers: [UsersController],
   providers: [UsersService, UsersRepository],
